@@ -7,5 +7,6 @@ RUN mkdir /home/$MAMBA_USER/app
 RUN chown $MAMBA_USER:$MAMBA_USER /home/$MAMBA_USER/app
 WORKDIR /home/$MAMBA_USER/app
 COPY --chown=$MAMBA_USER:$MAMBA_USER . .
+RUN chmod +x entry.sh
 
 CMD ["/bin/bash", "-c", "./entry.sh"]
