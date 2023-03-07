@@ -1,0 +1,8 @@
+name: base
+channels:
+  - https://conda.anaconda.org/conda-forge
+dependencies:
+  - python=3.10.8
+  - pip:
+      - faust-streaming==0.10.0
+      - aiohttp
