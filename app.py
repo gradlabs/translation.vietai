@@ -50,7 +50,7 @@ async def process_events(events, lang):
 
     # Send request
     async with aiohttp.ClientSession() as session:
-        async with session.post(INFER_URL, data=payload) as response:
+        async with session.post(INFER_URL, json=payload) as response:
             # Log status and content-type
             logger.info("Status: {}".format(response.status))
             logger.info("Content-type: {}".format(response.headers["content-type"]))
@@ -58,6 +58,7 @@ async def process_events(events, lang):
             translations = await response.text()
             logger.info("Body: {}".format(translations))
     # Ship to next topic
+    translations = ast.literal_eval(translations)
     await ship(translations, events)
 
 
