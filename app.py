@@ -5,6 +5,7 @@ import faust
 import asyncio
 import aiohttp
 import logging
+from aiohttp_retry import RetryClient, ExponentialRetry
 
 KAFKA_HOST = os.getenv("BROKER", "kafka:9092")
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", 8))
@@ -14,7 +15,7 @@ INFER_URL = os.getenv(
 )
 
 logger = logging.getLogger(__name__)
-
+retry_options = ExponentialRetry(attempts=3, statuses={500})
 app = faust.App("msd_trans", broker=f"kafka://{KAFKA_HOST}", value_serializer="raw")
 shipper_in = app.topic("shipper_in")
 
@@ -31,7 +32,7 @@ async def ship(translations, events):
     tasks = []
     for translated, event in zip(translations, events):
         msg = to_dict(event)
-        msg["data"] = translated[4:]
+        msg["data"] = translated
         task = asyncio.create_task(
             shipper_in.send(
                 key=event.key,
@@ -47,16 +48,18 @@ async def ship(translations, events):
 async def process_events(events, lang):
     # Prepare data
     payload = {"language": lang, "data": [to_dict(event)["data"] for event in events]}
-
+    logger.info("Payload: {}".format(payload))
     # Send request
     async with aiohttp.ClientSession() as session:
-        async with session.post(INFER_URL, json=payload) as response:
+        retry_client = RetryClient(session)
+        async with retry_client.post(INFER_URL, json=payload, retry_options=retry_options) as response:
             # Log status and content-type
             logger.info("Status: {}".format(response.status))
             logger.info("Content-type: {}".format(response.headers["content-type"]))
             # Get response asynchronously
             translations = await response.text()
             logger.info("Body: {}".format(translations))
+        await retry_client.close()
     # Ship to next topic
     translations = ast.literal_eval(translations)
     await ship(translations, events)

@@ -6,3 +6,4 @@ dependencies:
   - pip:
       - faust-streaming==0.10.0
       - aiohttp
+      - aiohttp-retry
